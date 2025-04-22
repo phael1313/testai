@@ -1,77 +1,74 @@
-import streamlit as st
-from docx import Document
+
+import os
+from flask import Flask, request, jsonify
 import requests
-import datetime
-import json
+from docx import Document
+from io import BytesIO
 
-def extrair_texto_docx(arquivo):
-    doc = Document(arquivo)
-    return "\n".join([p.text.strip() for p in doc.paragraphs if p.text.strip()])
+app = Flask(__name__)
 
-def obter_dados_via_ia(texto):
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # Defina sua chave como variável de ambiente
+OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+
+def extract_text_from_docx(file_stream):
+    doc = Document(file_stream)
+    full_text = []
+    for para in doc.paragraphs:
+        full_text.append(para.text)
+    return "\n".join(full_text)
+
+def generate_html_via_prompt(text_content):
     prompt = f"""
-    Abaixo está o conteúdo de um arquivo .docx referente a testes manuais de software.
+Você receberá o conteúdo de um arquivo .docx contendo um checklist técnico. Extraia os dados relevantes como:
+- Nome do cliente
+- Data de execução
+- Lista de testes realizados (com status de aprovado/reprovado)
+- Observações finais
+- Nome do responsável
 
-    Sua tarefa é extrair os seguintes dados do texto e retornar APENAS neste formato JSON:
-    {{
-      "nome_cliente": "Nome do cliente",
-      "numero_fatura": "Número da fatura",
-      "responsavel": "Nome do responsável",
-      "testes": ["Item de teste 1", "Item de teste 2", "Item de teste 3"]
-    }}
+Com base nesses dados, gere um arquivo HTML completo com estrutura de relatório técnico, contendo:
+- Título com o nome do cliente e data
+- Tabela dos testes com status e observações
+- Rodapé com o nome do responsável e a data
+- Use uma estrutura visual simples com cores neutras, boa leitura e responsividade.
 
-    Responda somente com o JSON e sem nenhum comentário extra.
+Insira um botão para permitir a exportação do arquivo preenchido. 
+A tabela dos testes precisa ter um checkbox em cada item
 
-    Texto extraído:
-    {texto}
+
+"""{text_content}"""
     """
 
     response = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
+        OPENAI_API_URL,
         headers={
-            "Authorization": f"Bearer {st.secrets['openrouter_key']}",
-            "Content-Type": "application/json"
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json",
         },
         json={
-            "model": "openchat/openchat-7b",
-            "messages": [{"role": "user", "content": prompt}]
-        }
+            "model": "gpt-3.5-turbo",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.3,
+        },
     )
 
-    resultado = response.json()
-    return resultado["choices"][0]["message"]["content"]
+    result = response.json()
+    return result["choices"][0]["message"]["content"]
 
-def gerar_html_final(dados):
-    with open("template_testai_layout_fixo.html", "r", encoding="utf-8") as f:
-        template = f.read()
+@app.route("/upload", methods=["POST"])
+def upload_file():
+    if "file" not in request.files:
+        return jsonify({"error": "Nenhum arquivo enviado."}), 400
 
-    campos = json.loads(dados)
-    hoje = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "Nome de arquivo inválido."}), 400
 
-    testes_html = ""
-    for item in campos.get("testes", []):
-        testes_html += f"<p><input type='checkbox'> {item}</p>\n"
+    file_stream = BytesIO(file.read())
+    text_content = extract_text_from_docx(file_stream)
+    html_result = generate_html_via_prompt(text_content)
 
-    final = template.replace("{{nome_cliente}}", campos.get("nome_cliente", ""))
-    final = final.replace("{{numero_fatura}}", campos.get("numero_fatura", ""))
-    final = final.replace("{{responsavel}}", campos.get("responsavel", ""))
-    final = final.replace("{{data}}", hoje)
-    final = final.replace("{{testes_html}}", testes_html)
+    return jsonify({"html": html_result})
 
-    return final
-
-# Streamlit app
-st.set_page_config(page_title="Testai — Relatório com Layout Fixo", layout="wide")
-st.title("✅ Testai — Layout fixo com dados via IA")
-
-uploaded_file = st.file_uploader("📎 Envie o arquivo .docx com os dados de teste", type=["docx"])
-
-if uploaded_file:
-    texto = extrair_texto_docx(uploaded_file)
-
-    if st.button("🧠 Gerar HTML via IA"):
-        with st.spinner("Processando..."):
-            dados_json = obter_dados_via_ia(texto)
-            html_final = gerar_html_final(dados_json)
-            st.download_button("📥 Baixar Relatório HTML", data=html_final, file_name="relatorio_final.html", mime="text/html")
-            st.code(html_final, language="html")
+if __name__ == "__main__":
+    app.run(debug=True)
