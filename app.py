@@ -48,8 +48,12 @@ if uploaded_file:
                 },
             )
 
-            result = response.json()
-            html_output = result["choices"][0]["message"]["content"]
+            resultado = response.json()
+    if "choices" in resultado:
+    return resultado["choices"][0]["message"]["content"]
+    else:
+    return json.dumps({"erro": "A IA não retornou uma resposta válida. Detalhe: " + str(resultado)})
+
 
             st.subheader("📄 HTML Gerado")
             st.code(html_output, language="html")
