@@ -9,8 +9,10 @@ def extrair_texto_docx(arquivo):
 def obter_resposta_da_ia(texto):
     prompt = f"""
 
+Você é um especialista em gerar um relatório de testes manuais de software.
 Preciso que você crie um formulário de controle de testes manuais com checklist interativo.
-Baseie-se no conteúdo a seguir extraído de um .docx:
+Cada item a ser testado, deve ser inserido junto com um checkbox para marcar, se foi ou não testado
+Baseie-se no conteúdo a seguir extraído de um .docx
 
 {texto}
 """
