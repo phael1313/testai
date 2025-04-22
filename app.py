@@ -28,7 +28,7 @@ def gerar_html_com_ia(texto_docx):
     },
     json={"inputs": prompt}
 )
-
+    
     if response.status_code != 200:
         return f"Erro: status {response.status_code} - {response.text}"
 
