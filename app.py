@@ -14,6 +14,8 @@ Preciso que você crie um formulário de controle de testes manuais com checklis
 Cada item a ser testado, deve ser inserido junto com um checkbox para marcar, se foi ou não testado
 Baseie-se no conteúdo a seguir extraído de um .docx
 
+Gere em formato .html para ser aberto no navegador e possibilitar que o usuário marque ou desmarque os checkbox
+
 {texto}
 """
 
