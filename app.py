@@ -27,7 +27,7 @@ def gerar_html_com_ia(texto_docx):
             "Content-Type": "application/json"
         },
         json={
-            "model": "mistral/mistral-7b-instruct",
+            "model": "openchat/openchat-7b",
             "messages": [{"role": "user", "content": prompt}]
         }
     )
