@@ -43,16 +43,7 @@ def gerar_html_final(dados):
     if "erro" in campos:
         return f"<p style='color:red;'>Erro: {campos['erro']}</p>"
 
-    testes_html = ""
-    for item in campos.get("testes", []):
-        testes_html += f"<p><input type='checkbox'> {item}</p>\n"
-
-    final = template.replace("{{nome_cliente}}", campos.get("nome_cliente", ""))
-    final = final.replace("{{numero_fatura}}", campos.get("numero_fatura", ""))
-    final = final.replace("{{responsavel}}", campos.get("responsavel", ""))
-    final = final.replace("{{data}}", hoje)
-    final = final.replace("{{testes_html}}", testes_html)
-
+    
     return final
 
 # Streamlit app
