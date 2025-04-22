@@ -11,19 +11,8 @@ def extrair_texto_docx(arquivo):
 def obter_dados_via_ia(texto):
     prompt = f"""
     Abaixo está o conteúdo de um arquivo .docx referente a testes manuais de software.
-
-    Sua tarefa é extrair os seguintes dados do texto e retornar APENAS neste formato JSON:
-    {{
-      "nome_cliente": "Nome do cliente",
-      "numero_fatura": "Número da fatura",
-      "responsavel": "Nome do responsável",
-      "testes": ["Item de teste 1", "Item de teste 2", "Item de teste 3"]
-    }}
-
-    Responda somente com o JSON e sem nenhum comentário extra.
-
-    Texto extraído:
-    {texto}
+Preciso que crie um formulário de controle de testes manuais com checklist interativo
+    
     """
 
     response = requests.post(
