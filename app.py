@@ -18,26 +18,21 @@ def extract_text_from_docx(file_stream):
     return "\n".join(full_text)
 
 def generate_html_via_prompt(text_content):
-    prompt = f"""
-Você receberá o conteúdo de um arquivo .docx contendo um checklist técnico. Extraia os dados relevantes como:
-- Nome do cliente
-- Data de execução
-- Lista de testes realizados (com status de aprovado/reprovado)
-- Observações finais
-- Nome do responsável
-
-Com base nesses dados, gere um arquivo HTML completo com estrutura de relatório técnico, contendo:
-- Título com o nome do cliente e data
-- Tabela dos testes com status e observações
-- Rodapé com o nome do responsável e a data
-- Use uma estrutura visual simples com cores neutras, boa leitura e responsividade.
-
-Insira um botão para permitir a exportação do arquivo preenchido. 
-A tabela dos testes precisa ter um checkbox em cada item
-
-
-"""{text_content}"""
-    """
+    prompt = (
+        "Você receberá o conteúdo de um arquivo .docx contendo um checklist técnico. Extraia os dados relevantes como:\n"
+        "- Nome do cliente\n"
+        "- Data de execução\n"
+        "- Lista de testes realizados (com status de aprovado/reprovado)\n"
+        "- Observações finais\n"
+        "- Nome do responsável\n\n"
+        "Com base nesses dados, gere um arquivo HTML completo com estrutura de relatório técnico, contendo:\n"
+        "- Título com o nome do cliente e data\n"
+        "- Tabela dos testes com status e observações\n"
+        "- Rodapé com o nome do responsável e a data\n"
+        "- Use uma estrutura visual simples com cores neutras, boa leitura e responsividade.\n\n"
+        "IMPORTANTE: crie o HTML do zero, com base apenas no texto abaixo:\n\n"
+        f"{text_content}"
+    )
 
     response = requests.post(
         OPENAI_API_URL,
