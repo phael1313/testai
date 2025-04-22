@@ -2,32 +2,27 @@ import streamlit as st
 from docx import Document
 import requests
 import datetime
+import json
 
-# Extrai texto do .docx
 def extrair_texto_docx(arquivo):
     doc = Document(arquivo)
     return "\n".join([p.text.strip() for p in doc.paragraphs if p.text.strip()])
 
-# Envia o texto do docx para a IA via OpenRouter
 def obter_dados_via_ia(texto):
     prompt = f"""
-    Abaixo está um conteúdo extraído de um arquivo .docx com informações sobre testes de software.
+    Abaixo está o conteúdo de um arquivo .docx referente a testes manuais de software.
 
-    Sua tarefa é:
-    - Extrair o nome do cliente
-    - Extrair o número da fatura
-    - Gerar uma lista em HTML com os itens de teste, onde cada item deve ter um checkbox desmarcado
-    - NÃO inclua título, apenas retorne os campos prontos para substituição.
-
-    Responda exatamente neste formato JSON:
+    Sua tarefa é extrair os seguintes dados do texto e retornar APENAS neste formato JSON:
     {{
-      "nome_cliente": "Nome aqui",
-      "numero_fatura": "123456",
-      "responsavel": "Responsável aqui",
-      "testes_html": "<p><input type='checkbox'> Item 1</p><p><input type='checkbox'> Item 2</p>"
+      "nome_cliente": "Nome do cliente",
+      "numero_fatura": "Número da fatura",
+      "responsavel": "Nome do responsável",
+      "testes": ["Item de teste 1", "Item de teste 2", "Item de teste 3"]
     }}
 
-    Conteúdo extraído:
+    Responda somente com o JSON e sem nenhum comentário extra.
+
+    Texto extraído:
     {texto}
     """
 
@@ -46,34 +41,37 @@ def obter_dados_via_ia(texto):
     resultado = response.json()
     return resultado["choices"][0]["message"]["content"]
 
-# Preenche o template HTML com os campos retornados da IA
-def preencher_template(dados_ia):
-    import json
-    with open("template_testai_openrouter.html", "r", encoding="utf-8") as f:
+def gerar_html_final(dados):
+    with open("template_testai_layout_fixo.html", "r", encoding="utf-8") as f:
         template = f.read()
 
-    campos = json.loads(dados_ia)
+    campos = json.loads(dados)
     hoje = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+
+    testes_html = ""
+    for item in campos.get("testes", []):
+        testes_html += f"<p><input type='checkbox'> {item}</p>\n"
 
     final = template.replace("{{nome_cliente}}", campos.get("nome_cliente", ""))
     final = final.replace("{{numero_fatura}}", campos.get("numero_fatura", ""))
     final = final.replace("{{responsavel}}", campos.get("responsavel", ""))
     final = final.replace("{{data}}", hoje)
-    final = final.replace("{{testes_html}}", campos.get("testes_html", ""))
+    final = final.replace("{{testes_html}}", testes_html)
 
     return final
 
-# Streamlit App
-st.set_page_config(page_title="Testai — Relatório com Layout Fixo (IA)", layout="wide")
-st.title("✅ Testai — Relatório com Layout Fixo via IA")
+# Streamlit app
+st.set_page_config(page_title="Testai — Relatório com Layout Fixo", layout="wide")
+st.title("✅ Testai — Layout fixo com dados via IA")
 
-uploaded_file = st.file_uploader("📎 Envie um arquivo .docx de testes", type=["docx"])
+uploaded_file = st.file_uploader("📎 Envie o arquivo .docx com os dados de teste", type=["docx"])
 
 if uploaded_file:
     texto = extrair_texto_docx(uploaded_file)
-    if st.button("🧠 Gerar HTML com IA"):
-        with st.spinner("Processando via IA..."):
+
+    if st.button("🧠 Gerar HTML via IA"):
+        with st.spinner("Processando..."):
             dados_json = obter_dados_via_ia(texto)
-            html_final = preencher_template(dados_json)
-            st.download_button("📥 Baixar HTML", data=html_final, file_name="relatorio_teste_gerado.html", mime="text/html")
+            html_final = gerar_html_final(dados_json)
+            st.download_button("📥 Baixar Relatório HTML", data=html_final, file_name="relatorio_final.html", mime="text/html")
             st.code(html_final, language="html")
