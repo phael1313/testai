@@ -21,10 +21,13 @@ def gerar_html_com_ia(texto_docx):
     """
 
     response = requests.post(
-        "https://api-inference.huggingface.co/models/google/flan-t5-small",
-        headers={"Content-Type": "application/json"},
-        json={"inputs": prompt}
-    )
+    "https://api-inference.huggingface.co/models/google/flan-t5-small",
+    headers={
+        "Authorization": f"Bearer {st.secrets['hf_token']}",
+        "Content-Type": "application/json"
+    },
+    json={"inputs": prompt}
+)
 
     if response.status_code != 200:
         return f"Erro: status {response.status_code} - {response.text}"
