@@ -7,8 +7,13 @@ def extrair_texto_docx(arquivo):
     return "\n".join([p.text.strip() for p in doc.paragraphs if p.text.strip()])
 
 def obter_resposta_da_ia(texto):
-    prompt = f"""{texto}"""  # Abaixo está o conteúdo de um arquivo .docx referente a testes manuais de software.
-Preciso que crie um formulário de controle de testes manuais com checklist interativo
+    prompt = f"""
+
+Preciso que você crie um formulário de controle de testes manuais com checklist interativo.
+Baseie-se no conteúdo a seguir extraído de um .docx:
+
+{texto}
+"""
 
     response = requests.post(
         "https://openrouter.ai/api/v1/chat/completions",
