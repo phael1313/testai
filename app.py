@@ -26,8 +26,15 @@ def gerar_html_com_ia(texto_docx):
         json={"inputs": prompt}
     )
 
-    resultado = response.json()
-    return resultado[0]["generated_text"] if isinstance(resultado, list) else "Erro ao gerar resposta"
+    if response.status_code != 200:
+        return f"Erro: status {response.status_code} - {response.text}"
+
+    try:
+        resultado = response.json()
+        return resultado[0]["generated_text"] if isinstance(resultado, list) else "Resposta inválida"
+    except Exception as e:
+        return f"Erro ao processar resposta da IA: {str(e)}"
+
 
 st.set_page_config(page_title="Testai — Checklist com IA Gratuita", layout="wide")
 st.title("✅ Testai — Gerador de Checklists (sem chave)")
