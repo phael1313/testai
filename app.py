@@ -3,40 +3,77 @@ from docx import Document
 import requests
 import datetime
 
-# Função para extrair texto puro de um .docx
+# Extrai texto do .docx
 def extrair_texto_docx(arquivo):
     doc = Document(arquivo)
-    return [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+    return "\n".join([p.text.strip() for p in doc.paragraphs if p.text.strip()])
 
-# Geração da seção HTML de testes com checkbox
-def gerar_html_testes(lista_testes):
-    blocos = []
-    for item in lista_testes:
-        linha = f"<p><input type='checkbox'> {item}</p>"
-        blocos.append(linha)
-    return "\n".join(blocos)
+# Envia o texto do docx para a IA via OpenRouter
+def obter_dados_via_ia(texto):
+    prompt = f"""
+    Abaixo está um conteúdo extraído de um arquivo .docx com informações sobre testes de software.
 
-# Função principal que monta o HTML com base no template
-def gerar_html_final(responsavel, testes):
-    with open("template_testai_base.html", "r", encoding="utf-8") as f:
+    Sua tarefa é:
+    - Extrair o nome do cliente
+    - Extrair o número da fatura
+    - Gerar uma lista em HTML com os itens de teste, onde cada item deve ter um checkbox desmarcado
+    - NÃO inclua título, apenas retorne os campos prontos para substituição.
+
+    Responda exatamente neste formato JSON:
+    {{
+      "nome_cliente": "Nome aqui",
+      "numero_fatura": "123456",
+      "responsavel": "Responsável aqui",
+      "testes_html": "<p><input type='checkbox'> Item 1</p><p><input type='checkbox'> Item 2</p>"
+    }}
+
+    Conteúdo extraído:
+    {texto}
+    """
+
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {st.secrets['openrouter_key']}",
+            "Content-Type": "application/json"
+        },
+        json={
+            "model": "openchat/openchat-7b",
+            "messages": [{"role": "user", "content": prompt}]
+        }
+    )
+
+    resultado = response.json()
+    return resultado["choices"][0]["message"]["content"]
+
+# Preenche o template HTML com os campos retornados da IA
+def preencher_template(dados_ia):
+    import json
+    with open("template_testai_openrouter.html", "r", encoding="utf-8") as f:
         template = f.read()
-    html_testes = gerar_html_testes(testes)
+
+    campos = json.loads(dados_ia)
     hoje = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
-    final = template.replace("{{responsavel}}", responsavel)
+
+    final = template.replace("{{nome_cliente}}", campos.get("nome_cliente", ""))
+    final = final.replace("{{numero_fatura}}", campos.get("numero_fatura", ""))
+    final = final.replace("{{responsavel}}", campos.get("responsavel", ""))
     final = final.replace("{{data}}", hoje)
-    final = final.replace("{{testes_html}}", html_testes)
+    final = final.replace("{{testes_html}}", campos.get("testes_html", ""))
+
     return final
 
-st.set_page_config(page_title="Testai — Checklist com Template Fixo", layout="wide")
-st.title("✅ Testai — Gerador com Layout Fixo")
+# Streamlit App
+st.set_page_config(page_title="Testai — Relatório com Layout Fixo (IA)", layout="wide")
+st.title("✅ Testai — Relatório com Layout Fixo via IA")
 
-uploaded_file = st.file_uploader("📎 Envie um arquivo .docx com os itens de teste", type=["docx"])
-responsavel = st.text_input("👤 Nome do responsável pelo teste")
+uploaded_file = st.file_uploader("📎 Envie um arquivo .docx de testes", type=["docx"])
 
-if uploaded_file and responsavel:
-    lista_testes = extrair_texto_docx(uploaded_file)
-    if st.button("🧠 Gerar HTML com base no modelo"):
-        with st.spinner("Gerando relatório..."):
-            html_gerado = gerar_html_final(responsavel, lista_testes)
-            st.download_button("📥 Baixar HTML", data=html_gerado, file_name="relatorio_testes.html", mime="text/html")
-            st.code(html_gerado, language="html")
+if uploaded_file:
+    texto = extrair_texto_docx(uploaded_file)
+    if st.button("🧠 Gerar HTML com IA"):
+        with st.spinner("Processando via IA..."):
+            dados_json = obter_dados_via_ia(texto)
+            html_final = preencher_template(dados_json)
+            st.download_button("📥 Baixar HTML", data=html_final, file_name="relatorio_teste_gerado.html", mime="text/html")
+            st.code(html_final, language="html")
