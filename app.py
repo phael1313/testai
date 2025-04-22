@@ -1,67 +1,83 @@
-
 import streamlit as st
-import requests
 from docx import Document
-from io import BytesIO
-import os
+import requests
+import datetime
+import json
 
-# Configurar título
-st.set_page_config(page_title="Testai - Geração de Relatório HTML")
-st.title("📄 Geração de Relatório HTML via IA")
+def extrair_texto_docx(arquivo):
+    doc = Document(arquivo)
+    return "\n".join([p.text.strip() for p in doc.paragraphs if p.text.strip()])
 
-# Upload do arquivo DOCX
-uploaded_file = st.file_uploader("Envie o arquivo .docx com os testes", type=["docx"])
+def obter_dados_via_ia(texto):
+    prompt = f"""
+    Abaixo está o conteúdo de um arquivo .docx referente a testes manuais de software.
+
+    Sua tarefa é extrair os seguintes dados do texto e retornar APENAS neste formato JSON:
+    {{
+      "nome_cliente": "Nome do cliente",
+      "numero_fatura": "Número da fatura",
+      "responsavel": "Nome do responsável",
+      "testes": ["Item de teste 1", "Item de teste 2", "Item de teste 3"]
+    }}
+
+    Responda somente com o JSON e sem nenhum comentário extra.
+
+    Texto extraído:
+    {texto}
+    """
+
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {st.secrets['openrouter_key']}",
+            "Content-Type": "application/json"
+        },
+        json={
+            "model": "openchat/openchat-7b",
+            "messages": [{"role": "user", "content": prompt}]
+        }
+    )
+
+    resultado = response.json()
+    if "choices" in resultado:
+        return resultado["choices"][0]["message"]["content"]
+    else:
+        return json.dumps({"erro": "A IA não retornou uma resposta válida. Detalhe: " + str(resultado)})
+
+def gerar_html_final(dados):
+    with open("template_testai_layout_fixo.html", "r", encoding="utf-8") as f:
+        template = f.read()
+
+    campos = json.loads(dados)
+    hoje = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+
+    if "erro" in campos:
+        return f"<p style='color:red;'>Erro: {campos['erro']}</p>"
+
+    testes_html = ""
+    for item in campos.get("testes", []):
+        testes_html += f"<p><input type='checkbox'> {item}</p>\n"
+
+    final = template.replace("{{nome_cliente}}", campos.get("nome_cliente", ""))
+    final = final.replace("{{numero_fatura}}", campos.get("numero_fatura", ""))
+    final = final.replace("{{responsavel}}", campos.get("responsavel", ""))
+    final = final.replace("{{data}}", hoje)
+    final = final.replace("{{testes_html}}", testes_html)
+
+    return final
+
+# Streamlit app
+st.set_page_config(page_title="Testai — Relatório com Layout Fixo", layout="wide")
+st.title("✅ Testai — Layout fixo com dados via IA")
+
+uploaded_file = st.file_uploader("📎 Envie o arquivo .docx com os dados de teste", type=["docx"])
 
 if uploaded_file:
-    # Extrair texto do arquivo
-    doc = Document(uploaded_file)
-    text_content = "\n".join([p.text for p in doc.paragraphs])
+    texto = extrair_texto_docx(uploaded_file)
 
-    st.subheader("📑 Conteúdo Extraído")
-    st.text_area("Texto do Documento:", text_content, height=200)
-
-    # Chave da API (você pode definir no ambiente ou direto aqui)
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or "SUA_CHAVE_AQUI"
-    OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
-
-    # Gerar HTML
-    if st.button("🔮 Gerar HTML via IA"):
-        with st.spinner("Gerando HTML..."):
-            prompt = (
-                "Você receberá o conteúdo de um arquivo .docx contendo um checklist técnico. "
-                "Extraia os dados relevantes como: nome do cliente, data de execução, lista de testes com status, "
-                "observações finais e nome do responsável. Em seguida, gere um HTML completo com estrutura visual clara, "
-                "com título, tabela de testes e rodapé com dados do responsável. Use apenas os dados abaixo:\n\n"
-                f"{text_content}"
-            )
-
-            response = requests.post(
-                OPENAI_API_URL,
-                headers={
-                    "Authorization": f"Bearer {OPENAI_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": "gpt-3.5-turbo",
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.3,
-                },
-            )
-
-            resultado = response.json()
-    if "choices" in resultado:
-    return resultado["choices"][0]["message"]["content"]
-    else:
-    return json.dumps({"erro": "A IA não retornou uma resposta válida. Detalhe: " + str(resultado)})
-
-
-            st.subheader("📄 HTML Gerado")
-            st.code(html_output, language="html")
-
-            # Baixar HTML como arquivo
-            st.download_button(
-                label="📥 Baixar HTML",
-                data=html_output,
-                file_name="relatorio_gerado.html",
-                mime="text/html"
-            )
+    if st.button("🧠 Gerar HTML via IA"):
+        with st.spinner("Processando..."):
+            dados_json = obter_dados_via_ia(texto)
+            html_final = gerar_html_final(dados_json)
+            st.download_button("📥 Baixar Relatório HTML", data=html_final, file_name="relatorio_final.html", mime="text/html")
+            st.code(html_final, language="html")
