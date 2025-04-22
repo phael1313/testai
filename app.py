@@ -21,13 +21,14 @@ def gerar_html_com_ia(texto_docx):
     - Log de observações
     """
 
-    response = requests.post(
-        "https://api-inference.huggingface.co/models/google/flan-t5-small",
-        headers={"Content-Type": "application/json"},
-        json={"inputs": prompt}
-    )
+   response = requests.post(
+    "https://api-inference.huggingface.co/models/google/flan-t5-small",
+    headers={"Content-Type": "application/json"},
+    json={"inputs": prompt}
+)
 
-    resultado = response.json()
-    return resultado[0]["generated_text"] if isinstance(resultado, list) else "Erro ao gerar resposta"
+resultado = response.json()
+return resultado[0]["generated_text"] if isinstance(resultado, list) else "Erro ao gerar resposta"
+
 
 # Interface Streamlit
