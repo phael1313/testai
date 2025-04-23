@@ -1,94 +1,130 @@
 # app.py
 import streamlit as st
-import os
 from docx import Document
 import PyPDF2
 from io import BytesIO
 import traceback
+from datetime import datetime
 
 def extract_text(uploaded_file):
-    """Extrai texto de arquivos DOCX ou PDF com tratamento robusto de erros"""
+    """Extrai texto de arquivos DOCX ou PDF"""
     try:
         if uploaded_file.name.endswith('.docx'):
-            doc = Document(uploaded_file)
-            return "\n".join([para.text for para in doc.paragraphs])
+            doc = Document(BytesIO(uploaded_file.getvalue()))
+            return "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
         elif uploaded_file.name.endswith('.pdf'):
-            pdf_reader = PyPDF2.PdfReader(uploaded_file)
+            pdf_reader = PyPDF2.PdfReader(BytesIO(uploaded_file.getvalue()))
             text = ""
             for page in pdf_reader.pages:
                 text += page.extract_text() or ""
             return text
-        else:
-            st.error("Formato de arquivo não suportado")
-            return None
+        return None
     except Exception as e:
-        st.error(f"Erro ao extrair texto: {str(e)}")
-        st.text(traceback.format_exc())  # Log detalhado do erro
+        st.error(f"Erro na extração: {str(e)}")
         return None
 
-def generate_test_items(text_content):
-    """Gera itens de teste básicos a partir do texto"""
-    if not text_content:
-        return []
-    
-    # Extrai linhas que parecem conter requisitos
-    test_items = []
-    for line in text_content.split('\n'):
-        line = line.strip()
-        if line and len(line.split()) > 3:  # Filtra linhas muito curtas
-            test_items.append(f"- [ ] Verificar: {line[:200]}")  # Limita o tamanho
-    
-    return test_items[:50]  # Limita a 50 itens
+def generate_html_report(test_items, filename):
+    """Gera um relatório HTML completo"""
+    html_content = f"""
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório de Testes - {filename}</title>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            color: #333;
+        }}
+        .header {{
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }}
+        .test-item {{
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-left: 4px solid #4CAF50;
+        }}
+        .footer {{
+            margin-top: 30px;
+            text-align: center;
+            color: #777;
+            font-size: 0.9em;
+        }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Relatório de Testes</h1>
+        <p>Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}</p>
+        <p>Arquivo original: {filename}</p>
+    </div>
+
+    <h2>Itens de Teste</h2>
+    {''.join([f'<div class="test-item">{item.replace("[ ]", "☐").replace("[x]", "✓")}</div>' for item in test_items])}
+
+    <div class="footer">
+        <p>Relatório gerado automaticamente</p>
+    </div>
+</body>
+</html>
+    """
+    return html_content
 
 def main():
-    st.set_page_config(page_title="Gerador de Testes", layout="wide")
+    st.set_page_config(page_title="Gerador de Testes", layout="centered")
     
     st.title("📋 Transforme Documentos em Casos de Teste")
     st.markdown("""
     ### Como usar:
     1. Faça upload de um arquivo DOCX ou PDF
-    2. O sistema extrairá o conteúdo automaticamente
-    3. Gere os itens de teste
+    2. Aguarde o processamento
+    3. Baixe o relatório completo em HTML
     """)
     
     uploaded_file = st.file_uploader(
-        "Arraste e solte seu arquivo aqui",
+        "Arraste e solte seu arquivo aqui (DOCX ou PDF)",
         type=['docx', 'pdf'],
-        help="Formatos suportados: DOCX, PDF"
+        accept_multiple_files=False,
+        help="Tamanho máximo: 200MB"
     )
     
-    if uploaded_file is not None:
+    if uploaded_file:
         with st.spinner("Processando arquivo..."):
             try:
-                # Extrai o texto
                 text_content = extract_text(uploaded_file)
                 
                 if text_content:
-                    # Gera itens de teste
-                    test_items = generate_test_items(text_content)
-                    
-                    # Exibe resultados
-                    st.success("✅ Arquivo processado com sucesso!")
-                    st.subheader("Itens de Teste Gerados")
+                    # Processa apenas linhas relevantes
+                    lines = [line.strip() for line in text_content.split('\n') if line.strip()]
+                    test_items = [f"- [ ] {line[:250]}" for line in lines if len(line.split()) > 3][:100]
                     
                     if test_items:
-                        st.markdown("\n".join(test_items))
-                    else:
-                        st.warning("Nenhum item de teste identificado automaticamente.")
+                        html_report = generate_html_report(test_items, uploaded_file.name)
                         
-                    # Opção para download
-                    st.download_button(
-                        label="📥 Baixar Itens de Teste",
-                        data="\n".join(test_items),
-                        file_name="itens_teste.md",
-                        mime="text/markdown"
-                    )
+                        st.success("✅ Relatório gerado com sucesso!")
+                        st.balloons()
+                        
+                        st.download_button(
+                            label="⬇️ Baixar Relatório HTML",
+                            data=html_report,
+                            file_name=f"relatorio_testes_{uploaded_file.name.split('.')[0]}.html",
+                            mime="text/html"
+                        )
+                    else:
+                        st.warning("Não foram identificados itens de teste no documento.")
                 else:
                     st.error("Não foi possível extrair conteúdo do arquivo")
             
             except Exception as e:
-                st.error("Ocorreu um erro durante o processamento")
-                st.code(traceback.format_exc())  # Mostra o traceback completo
+                st.error("Erro durante o processamento")
+                st.code(traceback.format_exc())
 
 if __name__ == "__main__":
     main()
