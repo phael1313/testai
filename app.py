@@ -6,23 +6,26 @@ def extrair_texto_docx(arquivo):
     doc = Document(arquivo)
     return "\n".join([p.text.strip() for p in doc.paragraphs if p.text.strip()])
 
-def gerar_html_completo_via_ia(texto):
-    prompt = f"""Você é um gerador de relatórios técnicos interativos. Com base no conteúdo abaixo, crie um código HTML completo que contenha:
+def gerar_html_com_gpt4(texto):
+    prompt = f"""Você é um gerador de relatórios técnicos HTML interativos. Gere sempre com a mesma estrutura visual e organizacional.
 
-- Títulos, seções e subtópicos com base no conteúdo
-- Cada item validado/testado deve conter:
-  - Um checkbox ao lado esquerdo
-  - Um texto explicativo/descritivo do item
-- Campo "Log de Alterações" editável
-- Botões funcionais no final da página:
-  - "Salvar Progresso" (salva marcações no navegador com localStorage)
-  - "Exportar Relatório" (baixa versão sem progresso)
-  - "Exportar HTML com Progresso" (baixa com checkboxes marcados e log)
-  - "Gerar Relatório de Controle de Teste"
-  - "Limpar Log"
-  - "Reiniciar Testes"
+Siga exatamente esta estrutura:
+- Logotipo no topo (imagem: https://inovamobil.com.br/wp-content/uploads/2023/06/Inovamobil-azul.svg)
+- Título principal: "Relatório Técnico de Testes"
+- Seções com subtítulos baseados no conteúdo
+- Cada item validado deve conter:
+  - Um checkbox
+  - Uma descrição clara ao lado
+- Um campo de texto chamado "Log de Alterações"
+- Botões finais fixos, que funcionem via JavaScript:
+  - Salvar Progresso (salva no localStorage)
+  - Exportar Relatório
+  - Exportar HTML com Progresso
+  - Gerar Relatório de Controle de Teste
+  - Limpar Log
+  - Reiniciar Testes
 
-Inclua estilos CSS e scripts JS no próprio HTML. O layout deve ser bonito, organizado e totalmente funcional.
+Use sempre as mesmas classes, estrutura visual, organização de botões e layout. Inclua o CSS e JavaScript embutidos no HTML. 
 
 Conteúdo base:
 {texto}
@@ -35,7 +38,7 @@ Conteúdo base:
             "Content-Type": "application/json"
         },
         json={
-            "model": "openchat/openchat-7b",
+            "model": "openai/gpt-4-turbo",
             "messages": [{"role": "user", "content": prompt}]
         }
     )
@@ -45,17 +48,17 @@ Conteúdo base:
     else:
         return "<p>Erro ao gerar relatório via IA.</p>"
 
-st.set_page_config(page_title="Testai - IA HTML Dinâmico", layout="wide")
-st.title("📄 Testai — Relatório HTML com IA Dinâmica")
+st.set_page_config(page_title="Testai - HTML com GPT-4 Turbo", layout="wide")
+st.title("📄 Testai — Relatório com IA Estável (GPT-4 Turbo)")
 
 uploaded_file = st.file_uploader("📎 Envie um arquivo .docx", type=["docx"])
 
 if uploaded_file:
     texto = extrair_texto_docx(uploaded_file)
     html = None
-    with st.spinner("🧠 Gerando relatório inteligente com IA..."):
-        html = gerar_html_completo_via_ia(texto)
+    with st.spinner("🧠 Gerando relatório com GPT-4 Turbo..."):
+        html = gerar_html_com_gpt4(texto)
 
     if html:
-        st.download_button("📥 Baixar Relatório HTML com IA", data=html, file_name="relatorio_completo_ia.html", mime="text/html")
+        st.download_button("📥 Baixar Relatório HTML com IA", data=html, file_name="relatorio_gpt4.html", mime="text/html")
         st.components.v1.html(html, height=1000, scrolling=True)
