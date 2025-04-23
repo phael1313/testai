@@ -23,18 +23,15 @@ def extract_text(uploaded_file):
         st.error(f"Erro na extração: {str(e)}")
         return None
 
-def generate_html_report(test_items, filename, initial_checks=None):
-    """Gera um relatório HTML interativo"""
-    if initial_checks is None:
-        initial_checks = [False] * len(test_items)
-    
+def generate_html_report(test_items, filename, client_name):
+    """Gera um relatório HTML interativo personalizado"""
     html_content = f"""
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Relatório de Testes - {filename}</title>
+    <title>Controle de Testes - {client_name}</title>
     <style>
         body {{
             font-family: Arial, sans-serif;
@@ -48,6 +45,36 @@ def generate_html_report(test_items, filename, initial_checks=None):
             padding-bottom: 20px;
             border-bottom: 1px solid #eee;
         }}
+        .logo {{
+            height: 80px;
+            margin-bottom: 20px;
+        }}
+        .client-info {{
+            background-color: #f0f8ff;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }}
+        .info-row {{
+            display: flex;
+            margin-bottom: 15px;
+            align-items: center;
+        }}
+        .info-label {{
+            width: 150px;
+            font-weight: bold;
+        }}
+        .info-input {{
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }}
+        .date-input {{
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }}
         .test-item {{
             margin-bottom: 10px;
             padding: 15px;
@@ -59,12 +86,6 @@ def generate_html_report(test_items, filename, initial_checks=None):
         .test-item input {{
             margin-right: 15px;
             transform: scale(1.5);
-        }}
-        .footer {{
-            margin-top: 30px;
-            text-align: center;
-            color: #777;
-            font-size: 0.9em;
         }}
         .progress-container {{
             margin: 20px 0;
@@ -79,33 +100,50 @@ def generate_html_report(test_items, filename, initial_checks=None):
             width: 0%;
             transition: width 0.3s;
         }}
-        .log-container {{
-            margin-top: 30px;
-            padding: 15px;
-            background-color: #f5f5f5;
-            border-radius: 5px;
-        }}
-        .log-entry {{
-            margin: 5px 0;
-            padding: 5px;
-            font-size: 0.9em;
-        }}
         .button {{
             padding: 10px 15px;
             margin: 5px;
-            background-color: #4CAF50;
+            background-color: #2c7be5;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            font-size: 14px;
+        }}
+        .button:hover {{
+            background-color: #1a68d1;
+        }}
+        .report-container {{
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f5f8fa;
+            border-radius: 5px;
+            display: none;
+        }}
+        .footer {{
+            margin-top: 30px;
+            text-align: center;
+            color: #777;
+            font-size: 0.9em;
         }}
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>Relatório de Testes</h1>
-        <p>Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}</p>
-        <p>Arquivo original: {filename}</p>
+        <img src="https://inovamobil.com.br/wp-content/uploads/2023/06/Inovamobil-azul.svg" alt="Logo Inovamobil" class="logo">
+        <h1>Controle de Testes</h1>
+        <h2>{client_name}</h2>
+    </div>
+
+    <div class="client-info">
+        <div class="info-row">
+            <div class="info-label">Nome do Responsável:</div>
+            <input type="text" id="responsibleName" class="info-input" placeholder="Digite o nome do responsável">
+        </div>
+        <div class="info-row">
+            <div class="info-label">Data do Teste:</div>
+            <input type="date" id="testDate" class="date-input" value="{datetime.now().strftime('%Y-%m-%d')}">
+        </div>
     </div>
 
     <div class="progress-container">
@@ -115,33 +153,40 @@ def generate_html_report(test_items, filename, initial_checks=None):
         <span id="progressText">0% Concluído (0/{len(test_items)})</span>
     </div>
 
-    <h2>Itens de Teste</h2>
+    <h3>Itens de Teste</h3>
     <div id="testItemsContainer">
         {''.join([
-            f'<div class="test-item"><input type="checkbox" id="item{i}" {"checked" if initial_checks[i] else ""}>'
+            f'<div class="test-item" data-id="{i}"><input type="checkbox" id="item{i}">'
             f'<label for="item{i}">{item.replace("[ ]", "").replace("[x]", "")}</label></div>'
             for i, item in enumerate(test_items)
         ])}
     </div>
 
-    <div class="log-container">
-        <h3>Log de Alterações</h3>
-        <div id="logEntries"></div>
+    <div style="text-align: center; margin: 30px 0;">
         <button class="button" onclick="saveProgress()">Salvar Progresso</button>
-        <button class="button" onclick="exportReport()">Exportar Relatório</button>
-        <button class="button" onclick="clearLog()">Limpar Log</button>
+        <button class="button" onclick="generateAdjustmentReport()">Relatório de Ajustes</button>
         <button class="button" onclick="resetTests()">Reiniciar Testes</button>
     </div>
 
+    <div id="adjustmentReport" class="report-container">
+        <h3>Relatório de Ajustes</h3>
+        <div id="pendingItemsList"></div>
+        <div style="margin-top: 15px;">
+            <label for="adjustmentNotes">Observações:</label>
+            <textarea id="adjustmentNotes" style="width: 100%; min-height: 80px; margin-top: 5px;"></textarea>
+        </div>
+        <button class="button" onclick="printAdjustmentReport()" style="margin-top: 10px;">Imprimir Relatório</button>
+    </div>
+
     <div class="footer">
-        <p>Relatório gerado automaticamente</p>
+        <p>Relatório gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')}</p>
     </div>
 
     <script>
         // Inicializa variáveis
         const totalItems = {len(test_items)};
-        let testState = {json.dumps(initial_checks)};
-        let logEntries = [];
+        let testState = Array(totalItems).fill(false);
+        const clientName = "{client_name}";
 
         // Atualiza progresso
         function updateProgress() {{
@@ -152,74 +197,90 @@ def generate_html_report(test_items, filename, initial_checks=None):
                 percentage + '% Concluído (' + checkedCount + '/' + totalItems + ')';
         }}
 
-        // Adiciona entrada no log
-        function addLogEntry(action) {{
-            const now = new Date();
-            const timestamp = now.toLocaleString('pt-BR');
-            logEntries.push(`[${{timestamp}}] ${{action}}`);
+        // Gera relatório de ajustes
+        function generateAdjustmentReport() {{
+            const pendingItems = [];
+            document.querySelectorAll('#testItemsContainer .test-item').forEach((item, index) => {{
+                if (!testState[index]) {{
+                    const itemText = item.querySelector('label').textContent.trim();
+                    pendingItems.push(`<div>- ${itemText}</div>`);
+                }}
+            }});
             
-            const logContainer = document.getElementById('logEntries');
-            const entryElement = document.createElement('div');
-            entryElement.className = 'log-entry';
-            entryElement.textContent = logEntries[logEntries.length - 1];
-            logContainer.appendChild(entryElement);
+            const reportContainer = document.getElementById('adjustmentReport');
+            const pendingList = document.getElementById('pendingItemsList');
+            
+            if (pendingItems.length > 0) {{
+                pendingList.innerHTML = `
+                    <p><strong>Itens pendentes de teste ({pendingItems.length}):</strong></p>
+                    ${{pendingItems.join('')}}
+                `;
+                reportContainer.style.display = 'block';
+            }} else {{
+                alert('Todos os itens foram testados!');
+                reportContainer.style.display = 'none';
+            }}
         }}
 
-        // Salva progresso no localStorage
+        // Imprime relatório de ajustes
+        function printAdjustmentReport() {{
+            const printContent = `
+                <h1>Relatório de Ajustes - ${clientName}</h1>
+                <p><strong>Responsável:</strong> ${document.getElementById('responsibleName').value || 'Não informado'}</p>
+                <p><strong>Data:</strong> ${document.getElementById('testDate').value}</p>
+                <hr>
+                ${document.getElementById('pendingItemsList').innerHTML}
+                <hr>
+                <p><strong>Observações:</strong></p>
+                <p>${document.getElementById('adjustmentNotes').value || 'Nenhuma observação'}</p>
+            `;
+            
+            const win = window.open('', '_blank');
+            win.document.write(`
+                <html>
+                    <head>
+                        <title>Relatório de Ajustes - ${clientName}</title>
+                        <style>
+                            body {{ font-family: Arial; padding: 20px; }}
+                            h1 {{ color: #2c7be5; }}
+                            hr {{ border: 0.5px solid #eee; }}
+                        </style>
+                    </head>
+                    <body>
+                        ${printContent}
+                        <script>
+                            window.onload = function() {{ window.print(); }};
+                        <\/script>
+                    </body>
+                </html>
+            `);
+            win.document.close();
+        }}
+
+        // Salva progresso
         function saveProgress() {{
             localStorage.setItem('testProgress', JSON.stringify(testState));
-            localStorage.setItem('testLog', JSON.stringify(logEntries));
-            addLogEntry('Progresso salvo');
+            localStorage.setItem('responsibleName', document.getElementById('responsibleName').value);
+            localStorage.setItem('testDate', document.getElementById('testDate').value);
             alert('Progresso salvo com sucesso!');
         }}
 
-        // Exporta relatório
-        function exportReport() {{
-            const report = {{
-                metadata: {{
-                    title: 'Relatório de Testes',
-                    date: new Date().toLocaleString('pt-BR'),
-                    originalFile: '{filename}',
-                    progress: (testState.filter(x => x).length / totalItems * 100).toFixed(2) + '%'
-                }},
-                testItems: testItems,
-                log: logEntries
-            }};
-            
-            const blob = new Blob([JSON.stringify(report, null, 2)], {{ type: 'application/json' }});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'relatorio_testes_{filename.split('.')[0]}.json';
-            a.click();
-            addLogEntry('Relatório exportado');
-        }}
-
-        // Limpa o log
-        function clearLog() {{
-            if (confirm('Tem certeza que deseja limpar o log?')) {{
-                logEntries = [];
-                document.getElementById('logEntries').innerHTML = '';
-                addLogEntry('Log limpo');
-            }}
-        }}
-
-        // Reinicia todos os testes
+        // Reinicia testes
         function resetTests() {{
             if (confirm('Tem certeza que deseja reiniciar todos os testes?')) {{
                 testState = Array(totalItems).fill(false);
-                document.querySelectorAll('#testItemsContainer input[type="checkbox"]').forEach((cb, i) => {{
+                document.querySelectorAll('#testItemsContainer input[type="checkbox"]').forEach(cb => {{
                     cb.checked = false;
                 }});
                 updateProgress();
-                addLogEntry('Testes reiniciados');
             }}
         }}
 
-        // Carrega progresso salvo
+        // Carrega dados salvos
         function loadProgress() {{
             const savedProgress = localStorage.getItem('testProgress');
-            const savedLog = localStorage.getItem('testLog');
+            const savedName = localStorage.getItem('responsibleName');
+            const savedDate = localStorage.getItem('testDate');
             
             if (savedProgress) {{
                 testState = JSON.parse(savedProgress);
@@ -228,16 +289,8 @@ def generate_html_report(test_items, filename, initial_checks=None):
                 }});
             }}
             
-            if (savedLog) {{
-                logEntries = JSON.parse(savedLog);
-                const logContainer = document.getElementById('logEntries');
-                logEntries.forEach(entry => {{
-                    const entryElement = document.createElement('div');
-                    entryElement.className = 'log-entry';
-                    entryElement.textContent = entry;
-                    logContainer.appendChild(entryElement);
-                }});
-            }}
+            if (savedName) document.getElementById('responsibleName').value = savedName;
+            if (savedDate) document.getElementById('testDate').value = savedDate;
             
             updateProgress();
         }}
@@ -247,7 +300,6 @@ def generate_html_report(test_items, filename, initial_checks=None):
             cb.addEventListener('change', function() {{
                 testState[i] = this.checked;
                 updateProgress();
-                addLogEntry(`Item ${{i+1}} - ${{this.checked ? 'marcado' : 'desmarcado'}}`);
             }});
         }});
 
@@ -261,16 +313,25 @@ def generate_html_report(test_items, filename, initial_checks=None):
     """
     return html_content
 
+def extract_client_name(content):
+    """Extrai o nome do cliente do conteúdo do documento"""
+    # Procura por padrões como "Cliente X", "Projeto Y", etc.
+    lines = content.split('\n')
+    for line in lines:
+        if any(keyword in line.lower() for keyword in ['cliente', 'projeto', 'jaguar']):
+            return line.strip()
+    return "Cliente não identificado"
+
 def main():
-    st.set_page_config(page_title="Gerador de Testes Interativo", layout="centered")
+    st.set_page_config(page_title="Gerador de Controle de Testes", layout="centered")
     
-    st.title("📋 Gerador de Testes Interativo")
+    st.title("📋 Gerador de Controle de Testes")
     st.markdown("""
     ### Como usar:
     1. Faça upload de um arquivo DOCX ou PDF
-    2. Aguarde o processamento
-    3. Baixe o relatório HTML interativo
-    4. Abra o HTML em qualquer navegador para usar as funcionalidades
+    2. O sistema identificará automaticamente o nome do cliente
+    3. Baixe o relatório HTML personalizado
+    4. Abra o HTML em qualquer navegador para usar todas as funcionalidades
     """)
     
     uploaded_file = st.file_uploader(
@@ -286,20 +347,23 @@ def main():
                 text_content = extract_text(uploaded_file)
                 
                 if text_content:
+                    # Extrai nome do cliente
+                    client_name = extract_client_name(text_content)
+                    
                     # Processa linhas relevantes
                     lines = [line.strip() for line in text_content.split('\n') if line.strip()]
                     test_items = [f"- [ ] {line[:250]}" for line in lines if len(line.split()) > 3][:50]
                     
                     if test_items:
-                        html_report = generate_html_report(test_items, uploaded_file.name)
+                        html_report = generate_html_report(test_items, uploaded_file.name, client_name)
                         
-                        st.success("✅ Relatório interativo gerado com sucesso!")
+                        st.success("✅ Relatório personalizado gerado com sucesso!")
                         st.balloons()
                         
                         st.download_button(
-                            label="⬇️ Baixar Relatório HTML Interativo",
+                            label="⬇️ Baixar Controle de Testes",
                             data=html_report,
-                            file_name=f"relatorio_interativo_{uploaded_file.name.split('.')[0]}.html",
+                            file_name=f"controle_testes_{client_name.replace(' ', '_')}.html",
                             mime="text/html"
                         )
                     else:
