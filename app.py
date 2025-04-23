@@ -5,7 +5,7 @@ def extrair_texto_docx(arquivo):
     doc = Document(arquivo)
     return "\n".join([p.text.strip() for p in doc.paragraphs if p.text.strip()])
 
-def gerar_html_completo():
+def gerar_html_corrigido():
     return """<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -54,6 +54,10 @@ def gerar_html_completo():
             font-size: 14px;
             margin-top: 5px;
         }
+        button {
+            font-size: 15px;
+            padding: 10px 15px;
+        }
     </style>
 </head>
 <body>
@@ -62,13 +66,13 @@ def gerar_html_completo():
 
     <div class="report-section info-block">
         <label>Nome do Cliente:</label>
-        <input type="text" value="Não informado">
+        <input id="cliente" type="text" value="Não informado">
 
         <label>Nome do Responsável:</label>
-        <input type="text" placeholder="Digite o nome do responsável">
+        <input id="responsavel" type="text" placeholder="Digite o nome do responsável">
 
         <label>Data do Teste:</label>
-        <input type="date">
+        <input id="data" type="date">
     </div>
 
     <div class="report-section">
@@ -102,7 +106,26 @@ def gerar_html_completo():
 
     <script>
         function baixarHTML() {
+            const cliente = document.getElementById('cliente').value;
+            const responsavel = document.getElementById('responsavel').value;
+            const data = document.getElementById('data').value;
+            const checkboxes = document.querySelectorAll('input[type=checkbox]');
+            const estadoCheckboxes = Array.from(checkboxes).map(cb => cb.checked);
+
             const clone = document.documentElement.cloneNode(true);
+            clone.getElementById('cliente').setAttribute('value', cliente);
+            clone.getElementById('responsavel').setAttribute('value', responsavel);
+            clone.getElementById('data').setAttribute('value', data);
+
+            const clonedCheckboxes = clone.querySelectorAll('input[type=checkbox]');
+            estadoCheckboxes.forEach((checked, index) => {
+                if (checked) {
+                    clonedCheckboxes[index].setAttribute('checked', 'checked');
+                } else {
+                    clonedCheckboxes[index].removeAttribute('checked');
+                }
+            });
+
             const doctype = "<!DOCTYPE html>";
             const blob = new Blob([doctype + "\n" + clone.outerHTML], {type: "text/html"});
             const link = document.createElement("a");
@@ -117,9 +140,9 @@ def gerar_html_completo():
 </body>
 </html>"""
 
-# Streamlit app
-st.set_page_config(page_title="Testai — Relatório Completo Exportável", layout="wide")
-st.title("🧠 Testai — Geração de Relatório HTML com Estrutura Completa")
+# App Streamlit
+st.set_page_config(page_title="Testai — Relatório Exportável Corrigido", layout="wide")
+st.title("🧠 Testai — Relatório com Exportação Funcional")
 
 uploaded_file = st.file_uploader("📎 Envie um arquivo .docx (opcional)", type=["docx"])
 
@@ -127,7 +150,7 @@ if uploaded_file:
     texto = extrair_texto_docx(uploaded_file)
     st.text_area("Texto extraído do .docx", texto, height=200)
 
-if st.button("Gerar Relatório HTML"):
-    html = gerar_html_completo()
-    st.download_button("📥 Baixar Relatório HTML", data=html, file_name="relatorio_completo.html", mime="text/html")
-    st.components.v1.html(html, height=900, scrolling=True)
+if st.button("Gerar Relatório HTML com Exportação"):
+    html = gerar_html_corrigido()
+    st.download_button("📥 Baixar HTML com Exportação", data=html, file_name="relatorio_exportavel_funcional.html", mime="text/html")
+    st.components.v1.html(html, height=950, scrolling=True)
