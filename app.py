@@ -10,7 +10,9 @@ def gerar_html_completo_via_ia(texto):
     prompt = f"""Você é um gerador de relatórios técnicos interativos. Com base no conteúdo abaixo, crie um código HTML completo que contenha:
 
 - Títulos, seções e subtópicos com base no conteúdo
-- Checkboxes para validação de itens
+- Cada item validado/testado deve conter:
+  - Um checkbox ao lado esquerdo
+  - Um texto explicativo/descritivo do item
 - Campo "Log de Alterações" editável
 - Botões funcionais no final da página:
   - "Salvar Progresso" (salva marcações no navegador com localStorage)
@@ -20,7 +22,7 @@ def gerar_html_completo_via_ia(texto):
   - "Limpar Log"
   - "Reiniciar Testes"
 
-Inclua os estilos CSS e scripts JS no próprio HTML. O resultado deve ser um documento bonito e funcional, pronto para uso.
+Inclua estilos CSS e scripts JS no próprio HTML. O layout deve ser bonito, organizado e totalmente funcional.
 
 Conteúdo base:
 {texto}
@@ -43,14 +45,17 @@ Conteúdo base:
     else:
         return "<p>Erro ao gerar relatório via IA.</p>"
 
-st.set_page_config(page_title="Testai - IA Relatório Dinâmico", layout="wide")
+st.set_page_config(page_title="Testai - IA HTML Dinâmico", layout="wide")
 st.title("📄 Testai — Relatório HTML com IA Dinâmica")
 
 uploaded_file = st.file_uploader("📎 Envie um arquivo .docx", type=["docx"])
 
 if uploaded_file:
     texto = extrair_texto_docx(uploaded_file)
-    with st.spinner("Gerando relatório inteligente..."):
+    html = None
+    with st.spinner("🧠 Gerando relatório inteligente com IA..."):
         html = gerar_html_completo_via_ia(texto)
+
+    if html:
         st.download_button("📥 Baixar Relatório HTML com IA", data=html, file_name="relatorio_completo_ia.html", mime="text/html")
         st.components.v1.html(html, height=1000, scrolling=True)
