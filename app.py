@@ -19,7 +19,7 @@ def extrair_texto(docx_file):
 @st.cache_data(show_spinner=True)
 def gerar_topicos_com_ia(texto):
     client = OpenAI(api_key=st.secrets["openai_key"])
-    prompt = f"""
+    prompt = 
 Você é um especialista em QA e testes manuais. Abaixo está o conteúdo de uma documentação de testes.
 
 Extraia de forma estruturada os itens que devem ser validados, de acordo com a documentação. Retorne uma lista simples de frases curtas, diretas e claras. Apenas os itens testáveis.
