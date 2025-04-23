@@ -1,138 +1,94 @@
 # app.py
 import streamlit as st
 import os
-import requests
-from datetime import datetime
-import base64
-import time
 from docx import Document
+import PyPDF2
+from io import BytesIO
+import traceback
 
-# Configuração da API DeepSeek (com fallback)
-DEEPSEEK_API_KEY = st.secrets.get("DEEPSEEK_API_KEY", os.getenv("DEEPSEEK_API_KEY", ""))
-DEEPSEEK_API_URL = "https://api.deepseek.ai/v1/chat/completions"
-TIMEOUT = 30  # segundos
-
-def check_internet_connection():
-    """Verifica se há conexão com a internet"""
+def extract_text(uploaded_file):
+    """Extrai texto de arquivos DOCX ou PDF com tratamento robusto de erros"""
     try:
-        requests.get("https://google.com", timeout=5)
-        return True
-    except:
-        return False
-
-def analyze_with_deepseek(content):
-    """Envia o conteúdo para análise pela API da DeepSeek com tratamento robusto de erros"""
-    if not DEEPSEEK_API_KEY:
-        st.error("Chave da API DeepSeek não configurada")
-        return None
-    
-    if not check_internet_connection():
-        st.error("Sem conexão com a internet")
-        return None
-
-    headers = {
-        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-    }
-    
-    prompt = f"""
-    Analise este documento técnico e liste os itens de teste em markdown:
-    {content}
-    
-    Formato:
-    ### [Categoria]
-    - [ ] Item de teste 1
-    - [ ] Item de teste 2
-    """
-    
-    payload = {
-        "model": "deepseek-chat",
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.3,
-        "max_tokens": 2000
-    }
-    
-    try:
-        response = requests.post(
-            DEEPSEEK_API_URL,
-            headers=headers,
-            json=payload,
-            timeout=TIMEOUT
-        )
-        response.raise_for_status()
-        return response.json().get("choices", [{}])[0].get("message", {}).get("content", "")
-    except requests.exceptions.RequestException as e:
-        st.error(f"Erro na API: {str(e)}")
-        return None
+        if uploaded_file.name.endswith('.docx'):
+            doc = Document(uploaded_file)
+            return "\n".join([para.text for para in doc.paragraphs])
+        elif uploaded_file.name.endswith('.pdf'):
+            pdf_reader = PyPDF2.PdfReader(uploaded_file)
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text() or ""
+            return text
+        else:
+            st.error("Formato de arquivo não suportado")
+            return None
     except Exception as e:
-        st.error(f"Erro inesperado: {str(e)}")
+        st.error(f"Erro ao extrair texto: {str(e)}")
+        st.text(traceback.format_exc())  # Log detalhado do erro
         return None
 
-def generate_simulation(content):
-    """Gera uma simulação quando a API não está disponível"""
-    # Análise simplificada do conteúdo
-    important_lines = [line for line in content.split('\n') 
-                      if any(keyword in line.lower() for keyword in ['test', 'verif', 'valid', 'confirm'])]
+def generate_test_items(text_content):
+    """Gera itens de teste básicos a partir do texto"""
+    if not text_content:
+        return []
     
-    if not important_lines:
-        important_lines = content.split('\n')[:10]
+    # Extrai linhas que parecem conter requisitos
+    test_items = []
+    for line in text_content.split('\n'):
+        line = line.strip()
+        if line and len(line.split()) > 3:  # Filtra linhas muito curtas
+            test_items.append(f"- [ ] Verificar: {line[:200]}")  # Limita o tamanho
     
-    markdown = "### Itens de Teste Identificados\n"
-    for i, line in enumerate(important_lines[:15]):  # Limita a 15 itens
-        markdown += f"- [ ] {line.strip()}\n"
-    
-    return markdown
+    return test_items[:50]  # Limita a 50 itens
 
 def main():
-    st.set_page_config(page_title="Gerador de Relatórios", layout="wide")
+    st.set_page_config(page_title="Gerador de Testes", layout="wide")
     
-    st.title("📋 Gerador de Relatórios de Teste")
-    st.caption("Transforme documentos em planos de teste automatizados")
+    st.title("📋 Transforme Documentos em Casos de Teste")
+    st.markdown("""
+    ### Como usar:
+    1. Faça upload de um arquivo DOCX ou PDF
+    2. O sistema extrairá o conteúdo automaticamente
+    3. Gere os itens de teste
+    """)
     
-    # Upload do arquivo
     uploaded_file = st.file_uploader(
-        "Carregue seu documento (DOCX ou TXT)",
-        type=['docx', 'txt'],
-        help="Documento com requisitos ou especificações"
+        "Arraste e solte seu arquivo aqui",
+        type=['docx', 'pdf'],
+        help="Formatos suportados: DOCX, PDF"
     )
     
-    if uploaded_file:
-        # Processamento do documento
-        with st.spinner("Processando documento..."):
-            doc_text = extract_text(uploaded_file)
-            
-            # Seção de análise
-            st.subheader("Análise do Documento")
-            
-            # Tenta usar a API ou fallback para simulação
-            analysis_result = None
-            if DEEPSEEK_API_KEY:
-                with st.spinner("Conectando à DeepSeek AI..."):
-                    analysis_result = analyze_with_deepseek(doc_text)
-            
-            if not analysis_result:
-                st.warning("Usando modo simulado (API não disponível)")
-                analysis_result = generate_simulation(doc_text)
-            
-            # Geração do relatório
-            if analysis_result:
-                html_report = create_html_report(
-                    filename=uploaded_file.name,
-                    content=doc_text,
-                    analysis=analysis_result
-                )
+    if uploaded_file is not None:
+        with st.spinner("Processando arquivo..."):
+            try:
+                # Extrai o texto
+                text_content = extract_text(uploaded_file)
                 
-                # Visualização e download
-                st.subheader("Relatório Gerado")
-                st.components.v1.html(html_report, height=800, scrolling=True)
-                
-                st.download_button(
-                    label="⬇️ Baixar Relatório HTML",
-                    data=html_report,
-                    file_name="relatorio_testes.html",
-                    mime="text/html"
-                )
+                if text_content:
+                    # Gera itens de teste
+                    test_items = generate_test_items(text_content)
+                    
+                    # Exibe resultados
+                    st.success("✅ Arquivo processado com sucesso!")
+                    st.subheader("Itens de Teste Gerados")
+                    
+                    if test_items:
+                        st.markdown("\n".join(test_items))
+                    else:
+                        st.warning("Nenhum item de teste identificado automaticamente.")
+                        
+                    # Opção para download
+                    st.download_button(
+                        label="📥 Baixar Itens de Teste",
+                        data="\n".join(test_items),
+                        file_name="itens_teste.md",
+                        mime="text/markdown"
+                    )
+                else:
+                    st.error("Não foi possível extrair conteúdo do arquivo")
+            
+            except Exception as e:
+                st.error("Ocorreu um erro durante o processamento")
+                st.code(traceback.format_exc())  # Mostra o traceback completo
 
 if __name__ == "__main__":
     main()
