@@ -1,63 +1,50 @@
-
 import streamlit as st
+import openai
+import docx2txt
 from datetime import datetime
+from pathlib import Path
 
 st.set_page_config(page_title="Testai — Gerador de Checklists de Testes", layout="wide")
 
-# Estilos CSS embutidos
-st.markdown("""
-    <style>
-        body { font-family: Arial; margin: 20px; }
-        .header { color: #1a5da0; font-size: 32px; font-weight: bold; }
-        .subheader { color: #333; font-size: 18px; margin-top: -10px; margin-bottom: 20px; }
-        .section-title { color: #1a5da0; font-size: 20px; font-weight: bold; margin-top: 30px; }
-        .checkbox-item { margin-left: 10px; }
-        .log-box { background-color: #f5f8fa; padding: 10px; border-radius: 5px; margin-top: 10px; }
-        .button-row button { margin-right: 10px !important; }
-    </style>
-""", unsafe_allow_html=True)
+st.title("Testai — Gerador de Checklists de Testes")
+st.markdown("Envie um arquivo .docx com a documentação do teste. A IA irá gerar um checklist HTML estruturado.")
 
-# Cabeçalho
-st.markdown('<div class="header">Controle de Testes</div>', unsafe_allow_html=True)
-st.markdown('<div class="subheader">Novo Modelo de Fatura - Cliente Jaguariúna</div>', unsafe_allow_html=True)
+uploaded_file = st.file_uploader("Envie um arquivo .docx de testes manuais", type=["docx"])
 
-# Responsável e Data
-col1, col2 = st.columns(2)
-with col1:
-    responsavel = st.text_input("Nome do Responsável:", placeholder="Digite seu nome")
-with col2:
-    data_teste = st.date_input("Data do Teste:", value=datetime.today())
+openai.api_key = st.secrets["openai_key"]
 
-# Itens a validar
-st.markdown('<div class="section-title">Itens a Validar</div>', unsafe_allow_html=True)
-itens = ["Item 1", "Item 2", "Item 3"]
-checks = []
-for item in itens:
-    checks.append(st.checkbox(item))
+def gerar_html_com_ia(texto):
+    prompt = f"""
+Aja como um gerador de checklist de validação para testes manuais. 
+Baseado na documentação abaixo, extraia os itens que devem ser testados e gere um arquivo HTML com a estrutura fixa. 
+Utilize o seguinte layout visual: título do projeto, nome do cliente, data do teste, nome do responsável, progresso dos testes, log de alterações e uma lista com checkbox para cada item detectado. 
 
-# Barra de Progresso
-st.markdown('<div class="section-title">Progresso dos Testes:</div>', unsafe_allow_html=True)
-progresso = sum(checks) / len(itens) if itens else 0
-st.progress(progresso)
-st.write(f"{int(progresso * 100)}% Concluído ({sum(checks)}/{len(itens)})")
+A estrutura do HTML deve conter também botões para: salvar progresso, exportar HTML com progresso, gerar relatório de controle de teste e reiniciar os testes.
 
-# Log de Alterações
-st.markdown('<div class="section-title">Log de Alterações</div>', unsafe_allow_html=True)
-log = st.empty()
-log.markdown('<div class="log-box">[23/04/2025, 09:25:24] Código de Barras - marcou</div>', unsafe_allow_html=True)
+Utilize o seguinte conteúdo para basear o checklist:
 
-# Botões Funcionais
-st.markdown('<div class="section-title">Ações</div>', unsafe_allow_html=True)
-col1, col2, col3, col4, col5, col6 = st.columns(6)
-with col1:
-    st.button("Salvar Progresso")
-with col2:
-    st.button("Exportar Relatório")
-with col3:
-    st.button("Exportar HTML com Progresso")
-with col4:
-    st.button("Gerar Relatório de Controle de Teste")
-with col5:
-    st.button("Gerar Relatório de Ajustes")
-with col6:
-    st.button("Limpar Log")
+"""{texto}"""
+"""
+    response = openai.ChatCompletion.create(
+        model="gpt-4-turbo",
+        messages=[
+            {"role": "system", "content": "Você é um gerador de relatórios em HTML de testes manuais."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.4
+    )
+
+    return response["choices"][0]["message"]["content"]
+
+if uploaded_file is not None:
+    docx_text = docx2txt.process(uploaded_file)
+    with st.spinner("Gerando relatório inteligente com IA..."):
+        try:
+            html_output = gerar_html_com_ia(docx_text)
+            html_file_path = Path("relatorio_gerado.html")
+            html_file_path.write_text(html_output, encoding="utf-8")
+            st.success("✅ HTML gerado com sucesso!")
+            with open(html_file_path, "rb") as f:
+                st.download_button("📥 Baixar Relatório HTML com IA", f, file_name="relatorio_gerado.html")
+        except Exception as e:
+            st.error(f"Erro ao gerar HTML: {e}")
