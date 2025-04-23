@@ -27,7 +27,6 @@ Documentação:
 """
 {texto}
 """
-"""
 
     response = openai.ChatCompletion.create(
         model="gpt-4-turbo",
