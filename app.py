@@ -203,7 +203,7 @@ def generate_html_report(test_items, filename, client_name):
             document.querySelectorAll('#testItemsContainer .test-item').forEach((item, index) => {{
                 if (!testState[index]) {{
                     const itemText = item.querySelector('label').textContent.trim();
-                    pendingItems.push(`<div>- ${itemText}</div>`);
+                    pendingItems.push('<div>- ' + itemText + '</div>');
                 }}
             }});
             
@@ -211,10 +211,9 @@ def generate_html_report(test_items, filename, client_name):
             const pendingList = document.getElementById('pendingItemsList');
             
             if (pendingItems.length > 0) {{
-                pendingList.innerHTML = `
-                    <p><strong>Itens pendentes de teste ({pendingItems.length}):</strong></p>
-                    ${{pendingItems.join('')}}
-                `;
+                pendingList.innerHTML = 
+                    '<p><strong>Itens pendentes de teste (' + pendingItems.length + '):</strong></p>' +
+                    pendingItems.join('');
                 reportContainer.style.display = 'block';
             }} else {{
                 alert('Todos os itens foram testados!');
@@ -224,16 +223,10 @@ def generate_html_report(test_items, filename, client_name):
 
         // Imprime relatório de ajustes
         function printAdjustmentReport() {{
-            const printContent = `
-                <h1>Relatório de Ajustes - ${clientName}</h1>
-                <p><strong>Responsável:</strong> ${document.getElementById('responsibleName').value || 'Não informado'}</p>
-                <p><strong>Data:</strong> ${document.getElementById('testDate').value}</p>
-                <hr>
-                ${document.getElementById('pendingItemsList').innerHTML}
-                <hr>
-                <p><strong>Observações:</strong></p>
-                <p>${document.getElementById('adjustmentNotes').value || 'Nenhuma observação'}</p>
-            `;
+            const responsibleName = document.getElementById('responsibleName').value || 'Não informado';
+            const testDate = document.getElementById('testDate').value;
+            const notes = document.getElementById('adjustmentNotes').value || 'Nenhuma observação';
+            const pendingItems = document.getElementById('pendingItemsList').innerHTML;
             
             const win = window.open('', '_blank');
             win.document.write(`
@@ -247,7 +240,14 @@ def generate_html_report(test_items, filename, client_name):
                         </style>
                     </head>
                     <body>
-                        ${printContent}
+                        <h1>Relatório de Ajustes - ${clientName}</h1>
+                        <p><strong>Responsável:</strong> ${responsibleName}</p>
+                        <p><strong>Data:</strong> ${testDate}</p>
+                        <hr>
+                        ${pendingItems}
+                        <hr>
+                        <p><strong>Observações:</strong></p>
+                        <p>${notes}</p>
                         <script>
                             window.onload = function() {{ window.print(); }};
                         <\/script>
@@ -315,7 +315,6 @@ def generate_html_report(test_items, filename, client_name):
 
 def extract_client_name(content):
     """Extrai o nome do cliente do conteúdo do documento"""
-    # Procura por padrões como "Cliente X", "Projeto Y", etc.
     lines = content.split('\n')
     for line in lines:
         if any(keyword in line.lower() for keyword in ['cliente', 'projeto', 'jaguar']):
@@ -347,10 +346,8 @@ def main():
                 text_content = extract_text(uploaded_file)
                 
                 if text_content:
-                    # Extrai nome do cliente
                     client_name = extract_client_name(text_content)
                     
-                    # Processa linhas relevantes
                     lines = [line.strip() for line in text_content.split('\n') if line.strip()]
                     test_items = [f"- [ ] {line[:250]}" for line in lines if len(line.split()) > 3][:50]
                     
