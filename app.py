@@ -186,7 +186,7 @@ def generate_html_report(test_items, filename, client_name):
         // Inicializa variáveis
         const totalItems = {len(test_items)};
         let testState = Array(totalItems).fill(false);
-        const clientName = "{client_name}";  // Corrigido para usar client_name do Python
+        const clientName = "{client_name}";
 
         // Atualiza progresso
         function updateProgress() {{
