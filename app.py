@@ -23,7 +23,7 @@ def extract_text(uploaded_file):
         st.error(f"Erro na extração: {str(e)}")
         return None
 
-def generate_html_report(test_items, filename, client_name):
+def generate_html_report(test_items, filename):
     """Gera um relatório HTML interativo personalizado"""
     html_content = f"""
 <!DOCTYPE html>
@@ -31,7 +31,7 @@ def generate_html_report(test_items, filename, client_name):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle de Testes - {client_name}</title>
+    <title>Controle de Testes</title>
     <style>
         body {{
             font-family: Arial, sans-serif;
@@ -132,10 +132,13 @@ def generate_html_report(test_items, filename, client_name):
     <div class="header">
         <img src="https://inovamobil.com.br/wp-content/uploads/2023/06/Inovamobil-azul.svg" alt="Logo Inovamobil" class="logo">
         <h1>Controle de Testes</h1>
-        <h2>{client_name}</h2>
     </div>
 
     <div class="client-info">
+        <div class="info-row">
+            <div class="info-label">Nome do Cliente:</div>
+            <input type="text" id="clientName" class="info-input" placeholder="Digite o nome do cliente">
+        </div>
         <div class="info-row">
             <div class="info-label">Nome do Responsável:</div>
             <input type="text" id="responsibleName" class="info-input" placeholder="Digite o nome do responsável">
@@ -186,7 +189,6 @@ def generate_html_report(test_items, filename, client_name):
         // Inicializa variáveis
         const totalItems = {len(test_items)};
         let testState = Array(totalItems).fill(false);
-        const clientName = "{client_name}";
 
         // Atualiza progresso
         function updateProgress() {{
@@ -199,6 +201,7 @@ def generate_html_report(test_items, filename, client_name):
 
         // Gera relatório de ajustes
         function generateAdjustmentReport() {{
+            const clientName = document.getElementById('clientName').value || 'Cliente não informado';
             const pendingItems = [];
             document.querySelectorAll('#testItemsContainer .test-item').forEach((item, index) => {{
                 if (!testState[index]) {{
@@ -212,6 +215,7 @@ def generate_html_report(test_items, filename, client_name):
             
             if (pendingItems.length > 0) {{
                 pendingList.innerHTML = 
+                    '<p><strong>Cliente:</strong> ' + clientName + '</p>' +
                     '<p><strong>Itens pendentes de teste (' + pendingItems.length + '):</strong></p>' +
                     pendingItems.join('');
                 reportContainer.style.display = 'block';
@@ -223,6 +227,7 @@ def generate_html_report(test_items, filename, client_name):
 
         // Imprime relatório de ajustes
         function printAdjustmentReport() {{
+            const clientName = document.getElementById('clientName').value || 'Cliente não informado';
             const responsibleName = document.getElementById('responsibleName').value || 'Não informado';
             const testDate = document.getElementById('testDate').value;
             const notes = document.getElementById('adjustmentNotes').value || 'Nenhuma observação';
@@ -232,7 +237,7 @@ def generate_html_report(test_items, filename, client_name):
             win.document.write(`
                 <html>
                     <head>
-                        <title>Relatório de Ajustes - ${clientName}</title>
+                        <title>Relatório de Ajustes</title>
                         <style>
                             body {{ font-family: Arial; padding: 20px; }}
                             h1 {{ color: #2c7be5; }}
@@ -240,7 +245,8 @@ def generate_html_report(test_items, filename, client_name):
                         </style>
                     </head>
                     <body>
-                        <h1>Relatório de Ajustes - ${clientName}</h1>
+                        <h1>Relatório de Ajustes</h1>
+                        <p><strong>Cliente:</strong> ${clientName}</p>
                         <p><strong>Responsável:</strong> ${responsibleName}</p>
                         <p><strong>Data:</strong> ${testDate}</p>
                         <hr>
@@ -260,6 +266,7 @@ def generate_html_report(test_items, filename, client_name):
         // Salva progresso
         function saveProgress() {{
             localStorage.setItem('testProgress', JSON.stringify(testState));
+            localStorage.setItem('clientName', document.getElementById('clientName').value);
             localStorage.setItem('responsibleName', document.getElementById('responsibleName').value);
             localStorage.setItem('testDate', document.getElementById('testDate').value);
             alert('Progresso salvo com sucesso!');
@@ -279,6 +286,7 @@ def generate_html_report(test_items, filename, client_name):
         // Carrega dados salvos
         function loadProgress() {{
             const savedProgress = localStorage.getItem('testProgress');
+            const savedClientName = localStorage.getItem('clientName');
             const savedName = localStorage.getItem('responsibleName');
             const savedDate = localStorage.getItem('testDate');
             
@@ -289,6 +297,7 @@ def generate_html_report(test_items, filename, client_name):
                 }});
             }}
             
+            if (savedClientName) document.getElementById('clientName').value = savedClientName;
             if (savedName) document.getElementById('responsibleName').value = savedName;
             if (savedDate) document.getElementById('testDate').value = savedDate;
             
@@ -313,14 +322,6 @@ def generate_html_report(test_items, filename, client_name):
     """
     return html_content
 
-def extract_client_name(content):
-    """Extrai o nome do cliente do conteúdo do documento"""
-    lines = content.split('\n')
-    for line in lines:
-        if any(keyword in line.lower() for keyword in ['cliente', 'projeto', 'jaguar']):
-            return line.strip()
-    return "Cliente não identificado"
-
 def main():
     st.set_page_config(page_title="Gerador de Controle de Testes", layout="centered")
     
@@ -328,9 +329,8 @@ def main():
     st.markdown("""
     ### Como usar:
     1. Faça upload de um arquivo DOCX ou PDF
-    2. O sistema identificará automaticamente o nome do cliente
-    3. Baixe o relatório HTML personalizado
-    4. Abra o HTML em qualquer navegador para usar todas as funcionalidades
+    2. Baixe o relatório HTML personalizado
+    3. Abra o HTML em qualquer navegador para usar todas as funcionalidades
     """)
     
     uploaded_file = st.file_uploader(
@@ -346,13 +346,11 @@ def main():
                 text_content = extract_text(uploaded_file)
                 
                 if text_content:
-                    client_name = extract_client_name(text_content)
-                    
                     lines = [line.strip() for line in text_content.split('\n') if line.strip()]
                     test_items = [f"- [ ] {line[:250]}" for line in lines if len(line.split()) > 3][:50]
                     
                     if test_items:
-                        html_report = generate_html_report(test_items, uploaded_file.name, client_name)
+                        html_report = generate_html_report(test_items, uploaded_file.name)
                         
                         st.success("✅ Relatório personalizado gerado com sucesso!")
                         st.balloons()
@@ -360,7 +358,7 @@ def main():
                         st.download_button(
                             label="⬇️ Baixar Controle de Testes",
                             data=html_report,
-                            file_name=f"controle_testes_{client_name.replace(' ', '_')}.html",
+                            file_name="controle_testes.html",
                             mime="text/html"
                         )
                     else:
