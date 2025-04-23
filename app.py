@@ -5,8 +5,7 @@ def extrair_texto_docx(arquivo):
     doc = Document(arquivo)
     return "\n".join([p.text.strip() for p in doc.paragraphs if p.text.strip()])
 
-# HTML base com checkbox interativos e botão para exportar
-def gerar_html_exportavel():
+def gerar_html_completo():
     return """<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -75,25 +74,25 @@ def gerar_html_exportavel():
     <div class="report-section">
         <h2>Resumo dos Testes Realizados</h2>
         <div class="report-text">
-            Este relatório apresenta os principais testes realizados no sistema para validação funcional. Os resultados apresentados abaixo indicam os itens inspecionados e validados.
+            Este relatório documenta os principais testes realizados com o objetivo de validar o correto funcionamento das funcionalidades do sistema.
         </div>
     </div>
 
     <div class="report-section">
         <h2>Itens Testados e Validados</h2>
         <div class="item-list">
-            <div class="item"><input type="checkbox"> Login com credenciais válidas</div>
-            <div class="item"><input type="checkbox"> Cadastro de novo usuário</div>
-            <div class="item"><input type="checkbox"> Recuperação de senha</div>
+            <div class="item"><input type="checkbox"> Funcionalidade de login</div>
+            <div class="item"><input type="checkbox"> Cadastro de usuários</div>
+            <div class="item"><input type="checkbox"> Edição de dados</div>
+            <div class="item"><input type="checkbox"> Exclusão de registros</div>
             <div class="item"><input type="checkbox"> Geração de relatórios</div>
-            <div class="item"><input type="checkbox"> Logout e sessão expirada</div>
         </div>
     </div>
 
     <div class="report-section">
         <h2>Conclusão</h2>
         <div class="report-text">
-            Todos os testes foram conduzidos conforme as especificações do projeto e critérios de aceite. O sistema demonstrou estabilidade e comportamento adequado nos cenários validados acima.
+            Com base nos testes realizados, conclui-se que o sistema está operando de acordo com os critérios estabelecidos e encontra-se apto para uso. Todos os itens testados foram devidamente validados.
         </div>
     </div>
 
@@ -118,9 +117,9 @@ def gerar_html_exportavel():
 </body>
 </html>"""
 
-# App Streamlit
-st.set_page_config(page_title="Testai — HTML com Exportação", layout="wide")
-st.title("🧠 Testai — Geração de HTML com botão de exportação")
+# Streamlit app
+st.set_page_config(page_title="Testai — Relatório Completo Exportável", layout="wide")
+st.title("🧠 Testai — Geração de Relatório HTML com Estrutura Completa")
 
 uploaded_file = st.file_uploader("📎 Envie um arquivo .docx (opcional)", type=["docx"])
 
@@ -128,7 +127,7 @@ if uploaded_file:
     texto = extrair_texto_docx(uploaded_file)
     st.text_area("Texto extraído do .docx", texto, height=200)
 
-if st.button("Gerar HTML com Exportação"):
-    html = gerar_html_exportavel()
-    st.download_button("📥 Baixar HTML com exportação", data=html, file_name="relatorio_testes_interativo.html", mime="text/html")
+if st.button("Gerar Relatório HTML"):
+    html = gerar_html_completo()
+    st.download_button("📥 Baixar Relatório HTML", data=html, file_name="relatorio_completo.html", mime="text/html")
     st.components.v1.html(html, height=900, scrolling=True)
